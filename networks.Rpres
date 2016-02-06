@@ -1,0 +1,356 @@
+<style>
+.reveal h1, .reveal h2, .reveal h3 {
+  word-wrap: normal;
+  -moz-hyphens: none;
+  
+.small-code pre code {
+  font-size: small;
+}
+
+.footer {
+    color: black; background: #E8E8E8;
+    position: fixed; top: 90%;
+    text-align:center; width:100%;
+}
+
+</style>
+
+How to Analyze Connected Things
+========================================================
+author: Rajarshi Guha
+date: February 9, 2016
+autosize: true
+transition: none
+font-import: http://fonts.googleapis.com/css?family=Roboto
+font-import: http://fonts.googleapis.com/css?family=PT_Sans
+font-family: 'Roboto'
+
+```{r echo=FALSE, msg=FALSE}
+library(igraph)
+library(dplyr)
+library(ggplot2)
+```
+
+[@rguha](https://twitter.com/rguha) | [http://blog.rguha.net](http://blog.rguha.net) | [https://github.com/rajarshi](https://github.com/rajarshi)
+
+What's this about?
+====
+- A little background on graphs
+- Input/Output with `igraph`
+- Working with networks
+- What can you do with this?
+
+Relevant packages
+===
+
+_Representation_
+
+`igraph`, `network`, `bipartite`, `graph`, `giRaph`
+
+_Analysis_
+
+`igraph`, `sna`
+
+_Inference_ 
+
+`ergm`, `statnet` and packages that support [graphical models](https://cran.r-project.org/web/views/gR.html)
+
+_Datasets_
+
+[Stanford SNAP](http://snap.stanford.edu/data/#citnets) (large networks) or [Nexus](http://nexus.igraph.org/) (smaller networks)
+
+What is a graph
+===
+
+- A collection of 
+  + nodes - any physical or abstract object
+  + edges - indicating relationships between nodes
+- Nodes and edges can both have properties
+  + useful for integrating different data types or overlaying multiple dimensions
+
+***
+
+- Web pages linked by hyperlinks
+- Citation networks - publications connected by if they have an author in common
+- Social networks - people are the nodes and edges can be defined in various ways
+- [Drug-target](http://www.nature.com/nbt/journal/v25/n10/full/nbt1338.html) networks - two types of nodes and three types of edges
+
+What is a graph
+===
+```{r graph-example, echo=FALSE, msg=FALSE}
+library(igraph)
+library(RColorBrewer)
+rndg <- erdos.renyi.game(40, 0.05, type=c("gnp", "gnm"), directed = FALSE, loops = FALSE)
+nv <- length(V(rndg))
+set1 <- sample(V(rndg), size=as.integer(0.3*nv))
+
+## set up node colors, sizes
+vpal <- brewer.pal(2, 'Set1')
+vcol <- rep(vpal[1], nv)
+vcol[set1] <- vpal[2]
+
+vsize <- sample(1:4, nv, replace=TRUE)
+ewt <- sample(1:10, length(E(rndg)), replace=TRUE)
+
+par(mar=rep(0,4))
+plot(rndg, layout=layout_with_fr, margin=0, 
+     vertex.label=NA, vertex.color = vcol, vertex.size=vsize*3,
+     edge.width = ewt)
+```
+
+***
+
+- Different types nodes 
+  + color
+- Node properties 
+  + size & color
+- Edges are weighted 
+  + thickness
+
+What is a graph?
+===
+
+The original drug target network ([Yildirim et al, 2007](http://www.nature.com/nbt/journal/v25/n10/full/nbt1338.html))
+
+![](nbt1338-F2.gif)
+
+
+Loading a graph
+========================================================
+class:small-code
+
+- Many ways to create a graph object
+  + Simple edge list or specialized formats 
+  + GraphML, DIMACS, Pajek, [...](http://www.inside-r.org/packages/cran/igraph/docs/UCINET)
+  + From [Nexus](http://nexus.igraph.org/), e.g.,  `nexus_get(14)`
+- Edge list is a simple way to start
+
+<font size="6">
+```{r igraph-load1, echo=TRUE, eval=TRUE}
+edges <- read.csv('ex1-edges.csv', header=TRUE, as.is=TRUE)
+head(edges)
+```
+</font>
+
+Loading a graph
+========================================================
+
+- Optionally provide a set of vertex attributes
+- First column should correspond to vertex names in the edges `data.frame`
+<font size="6">
+```{r igraph-load2, echo=TRUE, eval=TRUE}
+vertices <- read.csv('ex1-vertices.csv', 
+                      header=TRUE, as.is=TRUE)
+head(vertices)
+```
+</font>
+
+Loading a graph
+===
+
+- Finally create a graph object
+
+<font size="6">
+```{r igraph-load3, echo=TRUE, eval=TRUE}
+g <- graph.data.frame(edges, directed=FALSE, vertices=vertices)
+g
+```
+</font>
+
+Looking at a graph
+===
+<font size="6">
+```{r igraph-load4, echo=TRUE, eval=TRUE, fig.align='center'}
+plot(g, vertex.label=NA, vertex.size=2, 
+     layout=layout_with_fr)
+```
+</font>
+<font size="6">
+```{r igraph-load5, echo=TRUE, eval=FALSE, fig.align='center'}
+## Interactive plotting
+tkplot(g)
+```
+</font>
+
+Slicing & dicing a graph 
+===
+- Accessing vertices and edges and their attributes
+<font size="6">
+```{r graphops, echo=TRUE, eval=FALSE}
+## get vertices
+V(g)
+
+## get vertex attribute by name
+V(g)$name
+
+## Names of vertex attributes
+names(vertex_attr(g))
+
+## get edges
+E(g)
+
+## get edge attribute by name
+E(g)$score
+
+## get vertex attribute for specific vertex
+V(g)$name[20]
+```
+</font>
+
+Writing out graph
+===
+- Write out to files or else convert to `data.frame`
+<font size="6">
+```{r graphw, echo=TRUE, eval=TRUE}
+## Write graph to GML format which Cytoscape can read in
+write.graph(g, 'dump.gml', format='gml')
+
+## Convert graph to data.frame
+v <- get.data.frame(g, 'vertices')
+e <- get.data.frame(g, 'edges')
+head(e)
+```
+</font>
+
+Characterizing a graph
+===
+
+- A [plethora](https://en.wikipedia.org/wiki/Graph_property) of properties that characterize different aspects of a graph
+  + order, size, diameter, Wiener index, clustering coefficient
+  + Degree sequence, graph spectrum
+- Properties can be computed for 
+  + whole graph (e.g., size)
+  + edges or vertices (e.g., degree, centrality)
+- The choice of invariant is domain & problem dependent  
+  + some can be more useful than others - order and size are degenerate, but graph spectrum will be less so
+  
+Characterizing a graph
+===
+
+<font size="6">
+```{r graphprops, echo=FALSE,eval=TRUE, fig.height=9}
+rg1 <- sample_gnp(100, 0.05)
+rg2 <- sample_gnp(100, 0.05)
+ev1 <- eigen(get.adjacency(rg1))$values
+ev2 <- eigen(get.adjacency(rg2))$values
+
+nf <- layout(matrix(c(1,2,3,3,4,4), nrow=3, byrow=TRUE))
+par(mar=rep(0,4))
+plot(rg1, layout=layout_with_fr, vertex.label=NA, vertex.size=2, margin=0)
+plot(rg2, layout=layout_with_fr, vertex.label=NA, vertex.size=2, margin=0)
+
+par(mar=c(3,3,3,1))
+c1 <- centralization.betweenness(rg1)$res
+c2 <- centralization.betweenness(rg2)$res
+plot(density(c1), col='red', main='Vertex Centralization Distributions', cex.main=2)
+lines(density(c2), col='blue')
+
+par(mar=c(3,3,2,2))
+barplot(ev1-ev2, main=expression(paste(Delta, " graph spectrum")), cex.main=2)
+```
+</font>
+
+*** 
+
+- Two random graphs with same node count, similar edge counts (`r length(E(rg1))` & `r length(E(rg2))`)
+- [Vertex centralization](https://en.wikipedia.org/wiki/Centrality) very similar (K-S test p = `r round(ks.test(c1,c2)$p,2)`)
+- But graph spectrum shows distinct difference
+<font size="5">
+```{r, echo=TRUE}
+rg1 <- sample_gnp(100, 0.05)
+rg2 <- sample_gnp(100, 0.05)
+
+ev1 <- eigen(graph.laplacian(rg1, 
+             norm=TRUE))$values
+ev2 <- eigen(graph.laplacian(rg2, 
+             norm=TRUE))$values
+
+dev <- ev1-ev2
+```
+</font>
+  
+Degrees of separation
+===
+
+Facebook recently reported that we are actually separated from each other by [3.5 degrees](https://research.facebook.com/blog/three-and-a-half-degrees-of-separation/) and not 6
+![](fb.png)
+
+Degrees of separation
+===
+
+- For each node, compute length of shortest path to every other nodes, and then average over all nodes
+
+<font size="6">
+```{r dsep, echo=TRUE, eval=TRUE}
+spl <- shortest.paths(g)
+spl <- spl[upper.tri(spl)]
+spl <- spl[spl != Inf]
+mean(spl)
+
+## Or be lazy ...
+average.path.length(g, directed=FALSE)
+```
+</font>
+
+Degrees of separation 
+===
+
+- How does it differ from a random network with the same number of nodes and edges?
+<font size="6">
+```{r dsep-random, echo=TRUE, eval=TRUE}
+mean(unlist(mclapply(1:500, function(i) {
+  rg <- sample_gnm(n=length(V(g)), 
+                   m=length(E(g)))
+  average.path.length(rg, directed=FALSE)
+  }, mc.cores=4)))
+
+mean(unlist(mclapply(1:500, function(i) {
+  rg <- sample_pa(length(V(g)))
+  average.path.length(rg, directed=FALSE)
+  }, mc.cores=4)))
+```
+</font>
+
+Degrees of separation  - Caveat
+===
+
+- Straightforward on current laptops for small (V < 1000)
+- Doesn't scale when you're dealing with hundreds of thousands or more nodes.
+- Consider sampling or statistical methods to estimate average path lengths
+
+*** 
+
+![](allpairstime.png)
+
+Degrees of separation  - Sampling
+===
+
+<font size="6">
+```{r dsep-sample, echo=TRUE, eval=TRUE, cache=TRUE}
+ns <- 1e4
+rg <- sample_gnp(ns, 0.015)
+system.time(ds1 <- average.path.length(rg))
+
+system.time(ds2 <- mean(sapply(1:2000, function(x) {
+  idxs <- sample(1:length(V(rg)), 2)
+  length(get.shortest.paths(rg, idxs[1], idxs[2])$vpath[[1]])-1
+})))
+
+abs(ds1-ds2)
+```
+</font>  
+(Graph structure plays an important role)
+
+Modeling epidemics (SIR model)
+===
+
+`sir` method in `igraph` supports this directly
+
+Spatial networks
+===
+
+Vertices and edges
+
+Vertices also have x,y coordinates
+
+How do graph distances compare with Euclidean distances?
