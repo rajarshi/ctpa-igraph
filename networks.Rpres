@@ -26,6 +26,7 @@ font-import: http://fonts.googleapis.com/css?family=PT_Sans
 font-family: 'Roboto'
 
 ```{r echo=FALSE, msg=FALSE}
+library(RColorBrewer)
 library(igraph)
 library(dplyr)
 library(ggplot2)
@@ -33,12 +34,16 @@ library(ggplot2)
 
 [@rguha](https://twitter.com/rguha) | [http://blog.rguha.net](http://blog.rguha.net) | [https://github.com/rajarshi](https://github.com/rajarshi)
 
+[https://github.com/rajarshi/ctpa-igraph](https://github.com/rajarshi/ctpa-igraph)
+
 What's this about?
 ====
 - A little background on graphs
 - Input/Output with `igraph`
 - Working with networks
 - What can you do with this?
+
+Aim is to show that `igraph` lets you easily load or construct networks and flexibly work with them, so that, if needed, you can easily prototype algorithms on graph representations
 
 Relevant packages
 ===
@@ -49,7 +54,7 @@ _Representation_
 
 _Analysis_
 
-`igraph`, `sna`
+`igraph`, `sna`, `egonet`
 
 _Inference_ 
 
@@ -71,41 +76,11 @@ What is a graph
 ***
 
 - Web pages linked by hyperlinks
-- Citation networks - publications connected by if they have an author in common
-- Social networks - people are the nodes and edges can be defined in various ways
-- [Drug-target](http://www.nature.com/nbt/journal/v25/n10/full/nbt1338.html) networks - two types of nodes and three types of edges
-
-What is a graph
-===
-```{r graph-example, echo=FALSE, msg=FALSE}
-library(igraph)
-library(RColorBrewer)
-rndg <- erdos.renyi.game(40, 0.05, type=c("gnp", "gnm"), directed = FALSE, loops = FALSE)
-nv <- length(V(rndg))
-set1 <- sample(V(rndg), size=as.integer(0.3*nv))
-
-## set up node colors, sizes
-vpal <- brewer.pal(2, 'Set1')
-vcol <- rep(vpal[1], nv)
-vcol[set1] <- vpal[2]
-
-vsize <- sample(1:4, nv, replace=TRUE)
-ewt <- sample(1:10, length(E(rndg)), replace=TRUE)
-
-par(mar=rep(0,4))
-plot(rndg, layout=layout_with_fr, margin=0, 
-     vertex.label=NA, vertex.color = vcol, vertex.size=vsize*3,
-     edge.width = ewt)
-```
-
-***
-
-- Different types nodes 
-  + color
-- Node properties 
-  + size & color
-- Edges are weighted 
-  + thickness
+- [Authors](http://nexus.igraph.org/api/dataset_info?id=21&format=html) & publications
+- Ecological
+- Social (people, organizations)
+- Proteins, genes, [neurons](http://nexus.igraph.org/api/dataset_info?id=14&format=html)
+- [Drug-target](http://www.nature.com/nbt/journal/v25/n10/full/nbt1338.html) 
 
 What is a graph?
 ===
@@ -184,7 +159,7 @@ V(g)
 V(g)$name
 
 ## Names of vertex attributes
-names(vertex_attr(g))
+vertex_attr_names(g)
 
 ## get edges
 E(g)
@@ -196,6 +171,154 @@ E(g)$score
 V(g)$name[20]
 ```
 </font>
+
+Neighbors
+===
+- Given a vertex, useful to identify $k$-nearest neighbors
+- `neighborhood` gives the vertex index of the $k$-NN's
+- `graph.neighborhood` gives a graph of the $k$-NN
+- Useful for comparing the localities of different nodes
+
+***
+ 
+<font size="6">
+```{r nn}
+neighborhood(g, 2, 1)[[1]]
+
+graph.neighborhood(g, 2, 1)
+```
+</font>
+ 
+ 
+Neighbors
+===
+ 
+```{r nn2, echo=FALSE, fig.align='center', fig.width=10, fig.height=10}
+nn1 <- graph.neighborhood(g, 2, 1)[[1]]
+vcol <- rep('beige', vcount(nn1))
+vcol[1] <- '#ff9966'
+par(mar=rep(0,4)); plot(nn1, margin=0, vertex.color=vcol)
+```
+ 
+ 
+Subgraphs
+===
+```{r, echo=FALSE}
+E(g)$id <- seq_len(ecount(g))
+```
+<font size="6">
+```{r sg, eval=TRUE, echo=TRUE}
+v <- which(degree(g) >= 4)
+sg1 <- induced_subgraph(g,v)
+```
+</font>
+
+```{r sgv, eval=TRUE, echo=FALSE, fig.align='center'}
+vcol <- rep('grey', vcount(g))
+vcol[v] <- 'red'
+vsize <- rep(2, vcount(g))
+vsize[v] <- 4
+ecol <- rep('grey90', ecount(g))
+ecol[ E(sg1)$id ] <- 'blue'
+par(mar=rep(0,4))
+lo <- layout.fruchterman.reingold(g)
+lo.norm <- layout.norm(lo, -1,1, -1,1)
+plot(g, layout=lo, vertex.label=NA, 
+     edge.color=ecol,
+     vertex.size=2, vertex.color='grey90', margin=0, rescale=TRUE)
+plot(sg1, layout=lo, add=TRUE, vertex.label=NA, margin=0, 
+     edge.color=ecol,
+     vertex.color=vcol, vertex.size=vsize, rescale=TRUE)
+```
+***
+- Identify subgraph given a set of nodes and includes all edges between those nodes
+- Useful for 
+  + extracting specific subsets of nodes and their edges
+  + comparing subnetworks 
+
+(Sub)graph isomorphism
+===
+- Are graphs $G$ and $H$ the same?
+- Does graph $G$ contain a subgraph that is [isomorphic](https://en.wikipedia.org/wiki/Graph_isomorphism) to $H$
+- Very common task when working with chemical structures, biological pathways
+- NP-complete problem
+
+<font size="6">
+```{r sgi, eval=TRUE, echo=TRUE}
+graph.isomorphic(g,g)
+```
+</font>
+
+Connected components
+===
+<font size="6">
+```{r cc}
+rg <- sample_gnp(50, 0.025)
+
+## Get CC's as graphs
+cc <- decompose.graph(rg)
+
+## Get component membership
+ccm <- components(rg)
+```
+</font>
+
+```{r, eval=TRUE, echo=FALSE, fig.align='center'}
+pal <- brewer.pal(length(unique(ccm$membership)),
+                  "Set1")
+vcol <- pal[ccm$membership]
+vcol[is.na(vcol)] <- pal[9]
+plot(rg, layout=layout_with_fr, vertex.size=8, vertex.label=NA, vertex.color=vcol)
+```
+
+***
+- Many networks have disconnected components
+- Either extract these components as graphs (`decompose.graph`) or just identify which nodes belowing with which component (`components`)
+- Handy when dealing with "forests", collections of disconnected graphs
+
+Community detection (a.k.a clustering)
+===
+
+- Useful to identify sets of nodes that are more connected to each other than to other nodes in the graph
+<font size="6">
+```{r, echo=TRUE, eval=FALSE}
+g1 <- decompose.graph(g)[[1]]
+c1 <- cluster_edge_betweenness(g1)
+```
+</font>
+
+```{r clus, echo=FALSE, fig.align='center', fig.width=9, fig.height=5}
+g1 <- decompose.graph(g)[[1]]
+c1 <- cluster_edge_betweenness(g1)
+c2 <- cluster_infomap(g1)
+c3 <- cluster_label_prop(g1)
+c4 <- cluster_leading_eigen(g1)
+c5 <- cluster_louvain(g1)
+c6 <- cluster_spinglass(g1)
+c7 <- cluster_walktrap(g1)
+tmp <- do.call(rbind, lapply(list(c1, c2, c3, c4, c5, c6, c7), 
+                      function(x) {
+  data.frame(Algorithm=x$algorithm, NClus=length(unique(x$membership)))
+}))
+ggplot(tmp, aes(x=Algorithm, y=NClus))+
+  geom_bar(fill='beige', stat='identity', colour='black')+
+  theme(axis.text.x = element_text(angle=45,hjust=1))
+```
+
+Community detection (a.k.a clustering)
+===
+```{r, echo=FALSE, fig.align='center', fig.width=12, fig.height=9}
+lo <- layout_with_fr(g1)
+cplot <- function(cc, pal = brewer.pal(5, 'Set1')) {
+  mt <- data.frame(table(c1$membership)) %>% arrange(-Freq)
+  vcol <- pal[match(cc$membership, mt$Var1)]
+  vcol[is.na(vcol)] <- 'grey90'
+  plot(g1, layout=lo, vertex.label=NA, vertex.size=5, vertex.color=vcol, margin=0, 
+     main=cc$algorithm)
+}
+par(mar=c(0,0,2,0), mfrow=c(2,2))
+(sapply(list(c1,c2,c3,c4), cplot))
+```
 
 Writing out graph
 ===
@@ -215,12 +338,12 @@ head(e)
 Characterizing a graph
 ===
 
-- A [plethora](https://en.wikipedia.org/wiki/Graph_property) of properties that characterize different aspects of a graph
+- A [plethora](https://en.wikipedia.org/wiki/Graph_property) of properties (a.k.a., invariants) that characterize different aspects of a graph
   + order, size, diameter, Wiener index, clustering coefficient
   + Degree sequence, graph spectrum
 - Properties can be computed for 
   + whole graph (e.g., size)
-  + edges or vertices (e.g., degree, centrality)
+  + edges or vertices (e.g., degree, centrality, betweenness)
 - The choice of invariant is domain & problem dependent  
   + some can be more useful than others - order and size are degenerate, but graph spectrum will be less so
   
@@ -268,7 +391,27 @@ ev2 <- eigen(graph.laplacian(rg2,
 dev <- ev1-ev2
 ```
 </font>
-  
+
+Characterizing branching
+===
+
+<font size="6">
+```{r id, eval=FALSE, echo=TRUE}
+id  <- function(g) {
+  dm <- shortest.paths(g)
+  dm <- table(
+    dm[upper.tri(dm)]
+  )
+  sk <- sum(dm * log2(dm))
+  n <- length(V(g))  
+  n * (n-1)/2 * 
+    log2( n*(n-1)/2 ) - sk
+}
+```
+</font>
+
+***
+- The $I_D$ measure ([Bonchev & Trinajistic, 1978](http://onlinelibrary.wiley.com/doi/10.1002/qua.560140823/abstract))is designed to characterize branching
 Degrees of separation
 ===
 
@@ -299,13 +442,12 @@ Degrees of separation
 <font size="6">
 ```{r dsep-random, echo=TRUE, eval=TRUE}
 mean(unlist(mclapply(1:500, function(i) {
-  rg <- sample_gnm(n=length(V(g)), 
-                   m=length(E(g)))
+  rg <- sample_gnm(n=vcount(g), m=ecount(g))
   average.path.length(rg, directed=FALSE)
   }, mc.cores=4)))
 
 mean(unlist(mclapply(1:500, function(i) {
-  rg <- sample_pa(length(V(g)))
+  rg <- sample_pa(vcount(g))
   average.path.length(rg, directed=FALSE)
   }, mc.cores=4)))
 ```
@@ -341,10 +483,23 @@ abs(ds1-ds2)
 </font>  
 (Graph structure plays an important role)
 
-Modeling epidemics (SIR model)
+Other uses for shortest paths
+===
+- Mapping (e.g., find shortest route from NYC to LA)
+- Arbitrage opportunities in currency exchange rates ([code](http://algs4.cs.princeton.edu/44sp/Arbitrage.java.html))
+- Internet routing
+
+Which set of drug pairs are most effective?
 ===
 
-`sir` method in `igraph` supports this directly
+Dynamic networks
+===
+- Many real networks are not static
+  + spread of diseases (flu, Ebola, Zika)
+  + flow of rumors or ideas in communities
+  + growth of and exchange between scientific subfields
+
+- `sir` method implements the [Susceptible-Infected-Recovered](https://en.wikipedia.org/wiki/Compartmental_models_in_epidemiology#The_SIR_model) model
 
 Spatial networks
 ===
