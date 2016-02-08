@@ -202,7 +202,7 @@ graph.neighborhood(g, 2, 1)
 Neighbors
 ===
  
-```{r nn2, echo=FALSE, fig.align='center', fig.width=10, fig.height=10}
+```{r nn2, echo=FALSE, fig.align='center', fig.width=10, fig.height=8}
 nn1 <- graph.neighborhood(g, 2, 1)[[1]]
 vcol <- rep('beige', vcount(nn1))
 vcol[1] <- '#ff9966'
@@ -272,7 +272,7 @@ ccm <- components(rg)
 ```
 </font>
 
-```{r, eval=TRUE, echo=FALSE, fig.align='center'}
+```{r, eval=TRUE, echo=FALSE, fig.align='center', fig.height=6}
 pal <- brewer.pal(length(unique(ccm$membership)),
                   "Set1")
 vcol <- pal[ccm$membership]
