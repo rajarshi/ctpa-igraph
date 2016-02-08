@@ -8,9 +8,12 @@
 }
 
 .footer {
-    color: black; background: #E8E8E8;
-    position: fixed; top: 90%;
-    text-align:center; width:100%;
+    color: black;
+    background: #E8E8E8;
+    position: fixed;
+    top: 90%;
+    text-align:center;
+    width:100%;
 }
 
 </style>
@@ -124,7 +127,6 @@ Loading a graph
 ===
 
 - Finally create a graph object
-
 <font size="6">
 ```{r igraph-load3, echo=TRUE, eval=TRUE}
 g <- graph.data.frame(edges, directed=FALSE, vertices=vertices)
@@ -140,12 +142,19 @@ plot(g, vertex.label=NA, vertex.size=2,
      layout=layout_with_fr)
 ```
 </font>
-<font size="6">
-```{r igraph-load5, echo=TRUE, eval=FALSE, fig.align='center'}
-## Interactive plotting
-tkplot(g)
+***
+- Interactive plotting via `tkplot`
+- Network visualization [tutorial](https://rpubs.com/kateto/netviz) has good tips
+- Heatmaps also work
+
+```{r, echo=FALSE, fig.align='center', fig.height=4}
+v <- which(degree(g) >= 4)
+sg1 <- induced_subgraph(g,v)
+E(sg1)$weight <- rnorm(ecount(sg1))
+am <- as.matrix(get.adjacency(sg1, 'both', attr='weight'))
+par(mar=c(1,1,3,1))
+image(t(am), xlab='', ylab='', xaxt='n', yaxt='n', main='Weighted Adjacency Matrix')
 ```
-</font>
 
 Slicing & dicing a graph 
 ===
@@ -298,11 +307,14 @@ c6 <- cluster_spinglass(g1)
 c7 <- cluster_walktrap(g1)
 tmp <- do.call(rbind, lapply(list(c1, c2, c3, c4, c5, c6, c7), 
                       function(x) {
-  data.frame(Algorithm=x$algorithm, NClus=length(unique(x$membership)))
+  data.frame(Algorithm=gsub(" ", "\n", x$algorithm), 
+             NClus=length(unique(x$membership)))
 }))
 ggplot(tmp, aes(x=Algorithm, y=NClus))+
   geom_bar(fill='beige', stat='identity', colour='black')+
-  theme(axis.text.x = element_text(angle=45,hjust=1))
+  xlab("")+ylab("Number of Communities")+
+  theme(axis.text.x = element_text(angle=45,hjust=1, size=14),
+        axis.title = element_text(size=16))
 ```
 
 Community detection (a.k.a clustering)
@@ -316,13 +328,14 @@ cplot <- function(cc, pal = brewer.pal(5, 'Set1')) {
   plot(g1, layout=lo, vertex.label=NA, vertex.size=5, vertex.color=vcol, margin=0, 
      main=cc$algorithm)
 }
-par(mar=c(0,0,2,0), mfrow=c(2,2))
-(sapply(list(c1,c2,c3,c4), cplot))
+par(mar=c(0,0,2,0), mfrow=c(2,2), cex=1.2)
+junk <- sapply(list(c1,c2,c3,c4), cplot)
 ```
 
-Writing out graph
+Writing out graphs
 ===
 - Write out to files or else convert to `data.frame`
+- Useful when you need to use other tools (Cytoscape, Gephi, Pajek, etc)
 <font size="6">
 ```{r graphw, echo=TRUE, eval=TRUE}
 ## Write graph to GML format which Cytoscape can read in
@@ -396,8 +409,8 @@ Characterizing branching
 ===
 
 <font size="6">
-```{r id, eval=FALSE, echo=TRUE}
-id  <- function(g) {
+```{r id, eval=FALSE, echo=TRUE, fig.align='center', cache=TRUE}
+Id  <- function(g) {
   dm <- shortest.paths(g)
   dm <- table(
     dm[upper.tri(dm)]
@@ -410,8 +423,51 @@ id  <- function(g) {
 ```
 </font>
 
+```{r, echo=FALSE, cache=TRUE, fig.align='center', fig.height=5}
+load('Id-example.Rda')
+Id  <- function(g) {
+  dm <- shortest.paths(g)
+  dm <- table(
+    dm[upper.tri(dm)]
+  )
+  sk <- sum(dm * log2(dm))
+  n <- length(V(g))  
+  n * (n-1)/2 * 
+    log2( n*(n-1)/2 ) - sk
+}
+cp <- function(g, ...) plot(g, layout=layout_with_fr, 
+                            vertex.label=NA, vertex.size=2, 
+                            edge.arrow.size=0, margin=0,
+                            ...)
+par(mar=c(0,0,3,0), mfrow=c(2,2), cex=1.2)
+junk <- sapply(matches, function(x) cp(x, main=substitute(
+  paste(I[D], " = ", i), list(i=round(Id(x),2)))))
+```
 ***
-- The $I_D$ measure ([Bonchev & Trinajistic, 1978](http://onlinelibrary.wiley.com/doi/10.1002/qua.560140823/abstract))is designed to characterize branching
+
+- The $I_D$ measure ([Bonchev & Trinajistic, 1978](http://onlinelibrary.wiley.com/doi/10.1002/qua.560140823/abstract)) is designed to characterize branching
+- But centralization could be useful as well
+
+```{r, echo=FALSE, fig.align='center', fig.height=5}
+tmp <- data.frame(Id=sapply(matches, Id),
+                  Cb=sapply(matches, function(x) centralization.betweenness(x)$centralization),
+                  Cd=sapply(matches, function(x) centralization.degree(x)$centralization),
+                  Cc=sapply(matches, function(x) centralization.closeness(x)$centralization),
+                  Cev=sapply(matches, function(x) centralization.evcent(x)$centralization)
+                  )
+tmp <- melt(tmp, id.var='Id')
+ggplot(tmp, aes(x=Id, y=value, group=variable, colour=variable, fill=variable))+
+  geom_point(pch=21, size=4, colour='black')+
+  geom_line()+scale_x_log10()+scale_y_log10()+
+  ylab(expression(paste(log[10], " Centralization")))+
+  xlab(expression(paste(log[10], " ", I[D])))+
+  scale_fill_discrete()+scale_colour_discrete(guide=FALSE)+
+  theme(legend.position=c(0.1, 0.2),
+        legend.title = element_blank(),
+        axis.title = element_text(size=16),
+        axis.text = element_text(size=14))
+```
+
 Degrees of separation
 ===
 
@@ -438,22 +494,23 @@ average.path.length(g, directed=FALSE)
 Degrees of separation 
 ===
 
-- How does it differ from a random network with the same number of nodes and edges?
+- How does it differ from random networks with the same number of nodes and edges?
 <font size="6">
 ```{r dsep-random, echo=TRUE, eval=TRUE}
 mean(unlist(mclapply(1:500, function(i) {
-  rg <- sample_gnm(n=vcount(g), m=ecount(g))
+  rg <- sample_gnm(n=vcount(g), m=ecount(g)) # Erdos-Renyi
   average.path.length(rg, directed=FALSE)
   }, mc.cores=4)))
 
 mean(unlist(mclapply(1:500, function(i) {
-  rg <- sample_pa(vcount(g))
-  average.path.length(rg, directed=FALSE)
+  rg <- sample_pa(vcount(g)) # Barabasi-Albert
+  average.path.length(rg, directed=FALSE) 
   }, mc.cores=4)))
+
 ```
 </font>
 
-Degrees of separation  - Caveat
+Degrees of separation  - Caveat  
 ===
 
 - Straightforward on current laptops for small (V < 1000)
@@ -481,16 +538,42 @@ system.time(ds2 <- mean(sapply(1:2000, function(x) {
 abs(ds1-ds2)
 ```
 </font>  
-(Graph structure plays an important role)
 
-Other uses for shortest paths
-===
-- Mapping (e.g., find shortest route from NYC to LA)
-- Arbitrage opportunities in currency exchange rates ([code](http://algs4.cs.princeton.edu/44sp/Arbitrage.java.html))
-- Internet routing
 
-Which set of drug pairs are most effective?
+Which drug pairs are most effective?
 ===
+
+```{r mst, echo=FALSE, fig.align='center'}
+load('malaria.Rda')
+mst <- minimum.spanning.tree(g1, algorithm='prim')
+lo <- layout_with_gem(mst)
+lo.norm <- layout.norm(lo, -1,1, -1,1)
+par(mar=c(0,0,0,0))
+plot(g1, layout=lo.norm, vertex.label=NA,
+     vertex.size=1,
+     rescale=FALSE, edge.color="gray89")
+plot(mst, layout=lo.norm,
+     vertex.label=NA,      
+     vertex.size=sapply(V(mst)$potclass, function(x) vsize[[x]]),
+     vertex.color=sapply(V(mst)$moa, function(x) vcol[[x]]),
+     edge.color="gray8",
+     edge.width=2,
+     add=TRUE, rescale=FALSE)
+```
+<font size="6">
+```{r, echo=TRUE, eval=FALSE}
+minimum.spanning.tree(g1, 
+       algorithm='prim')
+```
+</font>
+
+*** 
+
+- Each node is a drug, each edge is a drug combination
+- Edge weight indicates effectiveness of the combination
+- What is the most effective set of combinations?
+- The [minimum spanning tree](https://en.wikipedia.org/wiki/Minimum_spanning_tree) identifies the **tree** using all vertices that has the minimum edge weight
+
 
 Dynamic networks
 ===
@@ -504,8 +587,43 @@ Dynamic networks
 Spatial networks
 ===
 
-Vertices and edges
+- Tweet network has geographic coordinates for some people
+- How does geographic distance correlate with topological distance?
 
-Vertices also have x,y coordinates
+```{r, echo=FALSE, fig.align='center', fig.height=5}
+vidx <- which(!is.na(V(g)$geox))
+g2 <- induced_subgraph(g, vidx)
+gd <- cbind(V(g2)$geox, V(g2)$geoy)
+dat <- data.frame(Topological=as.numeric(shortest.paths(g2)),
+                  Euclidean=as.numeric(as.matrix(dist(gd))))
+ggplot(dat, aes(Topological, Euclidean))+
+  geom_point(pch=21, alpha=0.75, fill='red')+
+  theme(axis.title = element_text(size=16),
+        axis.text = element_text(size=14))
+```
 
-How do graph distances compare with Euclidean distances?
+*** 
+<font size="5">
+```{r, eval=FALSE}
+vidx <- which(!is.na(V(g)$geox))
+g2 <- induced_subgraph(g, vidx)
+
+tm <- as.numeric(shortest.paths(g2))
+em <- as.numeric(as.matrix(
+  dist(cbind(V(g2)$geox,V(g2)$geoy))))
+dat <- data.frame(Topo=tm, Euc=em)
+
+ggplot(dat, aes(Topo, Euc))+
+  geom_point(pch=21, 
+             alpha=0.75, 
+             fill='red')+
+  theme(axis.title = 
+          element_text(size=16),
+        axis.text = 
+          element_text(size=14))
+```
+</font>
+
+```{r}
+
+```
