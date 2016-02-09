@@ -2,7 +2,12 @@
 .reveal h1, .reveal h2, .reveal h3 {
   word-wrap: normal;
   -moz-hyphens: none;
+}
   
+.ctpa .reveal .state-background {
+  background: #f3f1f1;
+} 
+
 .small-code pre code {
   font-size: small;
 }
@@ -40,7 +45,9 @@ library(ggplot2)
 [https://github.com/rajarshi/ctpa-igraph](https://github.com/rajarshi/ctpa-igraph)
 
 What's this about?
-====
+===
+type: ctpa
+
 - A little background on graphs
 - Input/Output with `igraph`
 - Working with networks
@@ -50,6 +57,7 @@ Aim is to show that `igraph` lets you easily load or construct networks and flex
 
 Relevant packages
 ===
+type: ctpa
 
 _Representation_
 
@@ -69,6 +77,7 @@ _Datasets_
 
 What is a graph
 ===
+type: ctpa
 
 - A collection of 
   + nodes - any physical or abstract object
@@ -87,6 +96,7 @@ What is a graph
 
 What is a graph?
 ===
+type: ctpa
 
 The original drug target network ([Yildirim et al, 2007](http://www.nature.com/nbt/journal/v25/n10/full/nbt1338.html))
 
@@ -94,8 +104,8 @@ The original drug target network ([Yildirim et al, 2007](http://www.nature.com/n
 
 
 Loading a graph
-========================================================
-class:small-code
+===
+type: ctpa
 
 - Many ways to create a graph object
   + Simple edge list or specialized formats 
@@ -111,7 +121,8 @@ head(edges)
 </font>
 
 Loading a graph
-========================================================
+===
+type: ctpa
 
 - Optionally provide a set of vertex attributes
 - First column should correspond to vertex names in the edges `data.frame`
@@ -125,6 +136,7 @@ head(vertices)
 
 Loading a graph
 ===
+type: ctpa
 
 - Finally create a graph object
 <font size="6">
@@ -136,6 +148,8 @@ g
 
 Looking at a graph
 ===
+type: ctpa
+
 <font size="6">
 ```{r igraph-load4, echo=TRUE, eval=TRUE, fig.align='center'}
 plot(g, vertex.label=NA, vertex.size=2, 
@@ -158,6 +172,8 @@ image(t(am), xlab='', ylab='', xaxt='n', yaxt='n', main='Weighted Adjacency Matr
 
 Slicing & dicing a graph 
 ===
+type: ctpa
+
 - Accessing vertices and edges and their attributes
 <font size="6">
 ```{r graphops, echo=TRUE, eval=FALSE}
@@ -183,6 +199,8 @@ V(g)$name[20]
 
 Neighbors
 ===
+type: ctpa
+
 - Given a vertex, useful to identify $k$-nearest neighbors
 - `neighborhood` gives the vertex index of the $k$-NN's
 - `graph.neighborhood` gives a graph of the $k$-NN
@@ -201,6 +219,7 @@ graph.neighborhood(g, 2, 1)
  
 Neighbors
 ===
+type: ctpa
  
 ```{r nn2, echo=FALSE, fig.align='center', fig.width=10, fig.height=8}
 nn1 <- graph.neighborhood(g, 2, 1)[[1]]
@@ -212,6 +231,8 @@ par(mar=rep(0,4)); plot(nn1, margin=0, vertex.color=vcol)
  
 Subgraphs
 ===
+type: ctpa
+
 ```{r, echo=FALSE}
 E(g)$id <- seq_len(ecount(g))
 ```
@@ -247,6 +268,8 @@ plot(sg1, layout=lo, add=TRUE, vertex.label=NA, margin=0,
 
 (Sub)graph isomorphism
 ===
+type: ctpa
+
 - Are graphs $G$ and $H$ the same?
 - Does graph $G$ contain a subgraph that is [isomorphic](https://en.wikipedia.org/wiki/Graph_isomorphism) to $H$
 - Very common task when working with chemical structures, biological pathways
@@ -260,6 +283,8 @@ graph.isomorphic(g,g)
 
 Connected components
 ===
+type: ctpa
+
 <font size="6">
 ```{r cc}
 rg <- sample_gnp(50, 0.025)
@@ -287,6 +312,7 @@ plot(rg, layout=layout_with_fr, vertex.size=8, vertex.label=NA, vertex.color=vco
 
 Community detection (a.k.a clustering)
 ===
+type: ctpa
 
 - Useful to identify sets of nodes that are more connected to each other than to other nodes in the graph
 <font size="6">
@@ -319,6 +345,8 @@ ggplot(tmp, aes(x=Algorithm, y=NClus))+
 
 Community detection (a.k.a clustering)
 ===
+type: ctpa
+
 ```{r, echo=FALSE, fig.align='center', fig.width=12, fig.height=9}
 lo <- layout_with_fr(g1)
 cplot <- function(cc, pal = brewer.pal(5, 'Set1')) {
@@ -334,6 +362,8 @@ junk <- sapply(list(c1,c2,c3,c4), cplot)
 
 Writing out graphs
 ===
+type: ctpa
+
 - Write out to files or else convert to `data.frame`
 - Useful when you need to use other tools (Cytoscape, Gephi, Pajek, etc)
 <font size="6">
@@ -350,6 +380,7 @@ head(e)
 
 Characterizing a graph
 ===
+type: ctpa
 
 - A [plethora](https://en.wikipedia.org/wiki/Graph_property) of properties (a.k.a., invariants) that characterize different aspects of a graph
   + order, size, diameter, Wiener index, clustering coefficient
@@ -362,6 +393,7 @@ Characterizing a graph
   
 Characterizing a graph
 ===
+type: ctpa
 
 <font size="6">
 ```{r graphprops, echo=FALSE,eval=TRUE, fig.height=9}
@@ -407,6 +439,7 @@ dev <- ev1-ev2
 
 Characterizing branching
 ===
+type: ctpa
 
 <font size="6">
 ```{r id, eval=FALSE, echo=TRUE, fig.align='center', cache=TRUE}
@@ -470,12 +503,15 @@ ggplot(tmp, aes(x=Id, y=value, group=variable, colour=variable, fill=variable))+
 
 Degrees of separation
 ===
+type: ctpa
 
 Facebook recently reported that we are actually separated from each other by [3.5 degrees](https://research.facebook.com/blog/three-and-a-half-degrees-of-separation/) and not 6
 ![](fb.png)
 
 Degrees of separation
 ===
+type: ctpa
+
 
 - For each node, compute length of shortest path to every other nodes, and then average over all nodes
 
@@ -493,6 +529,7 @@ average.path.length(g, directed=FALSE)
 
 Degrees of separation 
 ===
+type: ctpa
 
 - How does it differ from random networks with the same number of nodes and edges?
 <font size="6">
@@ -512,6 +549,7 @@ mean(unlist(mclapply(1:500, function(i) {
 
 Degrees of separation  - Caveat  
 ===
+type: ctpa
 
 - Straightforward on current laptops for small (V < 1000)
 - Doesn't scale when you're dealing with hundreds of thousands or more nodes.
@@ -523,6 +561,7 @@ Degrees of separation  - Caveat
 
 Degrees of separation  - Sampling
 ===
+type: ctpa
 
 <font size="6">
 ```{r dsep-sample, echo=TRUE, eval=TRUE, cache=TRUE}
@@ -542,6 +581,7 @@ abs(ds1-ds2)
 
 Which drug pairs are most effective?
 ===
+type: ctpa
 
 ```{r mst, echo=FALSE, fig.align='center'}
 load('malaria.Rda')
@@ -577,6 +617,8 @@ minimum.spanning.tree(g1,
 
 Dynamic networks
 ===
+type: ctpa
+
 - Many real networks are not static
   + spread of diseases (flu, Ebola, Zika)
   + flow of rumors or ideas in communities
@@ -586,6 +628,7 @@ Dynamic networks
 
 Spatial networks
 ===
+type: ctpa
 
 - Tweet network has geographic coordinates for some people
 - How does geographic distance correlate with topological distance?
